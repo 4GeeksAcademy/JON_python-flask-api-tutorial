@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>API de Lista de Tareas</title>
+  <style>
+    /* ===== Estilos Generales ===== */
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f9f9f9;
+      margin: 0;
+      padding: 20px;
+      color: #333;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background-color: #fff;
+      padding: 20px 30px;
+      border-radius: 6px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    h1, h2 {
+      color: #222;
+      margin-top: 1em;
+      margin-bottom: 0.5em;
+    }
+    p {
+      line-height: 1.6;
+    }
+    hr {
+      margin: 2em 0;
+      border: none;
+      border-top: 1px solid #ccc;
+    }
+
+    /* ===== Sección de acciones GET + POST ===== */
+    .actions-top {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      align-items: center;
+    }
+    .actions-top button {
+      padding: 10px 16px;
+      font-size: 1em;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      color: #fff;
+    }
+    .btn-get {
+      background-color: #1e88e5;
+    }
+    .btn-get:hover {
+      background-color: #1565c0;
+    }
+    .actions-top input[type="text"] {
+      flex: 1;
+      padding: 8px;
+      font-size: 1em;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    .btn-post {
+      background-color: #43a047;
+    }
+    .btn-post:hover {
+      background-color: #2e7d32;
+    }
+
+    /* ===== Lista de tareas ===== */
+    .todo-section {
+      margin-top: 1em;
+    }
+    ul {
+      list-style: none;
+      padding: 0;
+    }
+    li {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid #eee;
+      font-size: 1em;
+    }
+    li:last-child {
+      border-bottom: none;
+    }
+    .task-label {
+      flex: 1;
+    }
+    .done-true {
+      text-decoration: line-through;
+      color: #777;
+    }
+    .done-false {
+      color: #333;
+    }
+    .btn-delete {
+      padding: 6px 12px;
+      background-color: #e53935;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      font-size: 0.9em;
+      cursor: pointer;
+      margin-left: 10px;
+    }
+    .btn-delete:hover {
+      background-color: #c62828;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>API de Lista de Tareas</h1>
+    <p>Usa el campo y los botones para comunicarte con la API:</p>
+
+    <!-- 1. Botón GET /todos y campo+botón POST /todos -->
+    <div class="actions-top">
+      <!-- 1.a) Botón para GET /todos -->
+      <button class="btn-get" id="btn-get">GET /todos</button>
+
+      <!-- 1.b) Campo de texto para nueva tarea -->
+      <input
+        type="text"
+        id="new-label"
+        placeholder="Texto de la nueva tarea"
+        autocomplete="off"
+      />
+
+      <!-- 1.c) Botón para POST /todos -->
+      <button class="btn-post" id="btn-post">POST /todos</button>
+    </div>
+
+    <hr />
+
+    <!-- 2. Aquí se mostrará la lista de tareas -->
+    <div class="todo-section">
+      <h2>Lista de tareas actuales</h2>
+      <ul id="todo-list">
+        <!-- Se rellenará con <li> cuando pulses GET /todos -->
+      </ul>
+      <p id="empty-message" style="color: #555; font-style: italic;">
+        La lista está vacía. Pulsa “GET /todos” para ver las tareas.
+      </p>
+    </div>
+  </div>
+
+  <script>
+    const baseURL = 'http://127.0.0.1:5000';
+
+    // Referencias al DOM
+    const todoListEl = document.getElementById('todo-list');
+    const emptyMessageEl = document.getElementById('empty-message');
+    const btnGet = document.getElementById('btn-get');
+    const btnPost = document.getElementById('btn-post');
+    const inputLabel = document.getElementById('new-label');
+
+    // 1) Función para listar tareas (GET /todos)
+    async function fetchTodos() {
+      try {
+        const resp = await fetch(baseURL + '/todos');
+        if (!resp.ok) throw new Error('Error ' + resp.status);
+        const todos = await resp.json();
+
+        // Si no hay tareas, mostramos mensaje
+        if (todos.length === 0) {
+          todoListEl.innerHTML = '';
+          emptyMessageEl.textContent =
+            'No hay tareas para mostrar. Crea alguna con POST o recarga.';
+          return;
+        }
+
+        // Si hay tareas, las pintamos en la lista
+        emptyMessageEl.textContent = '';
+        todoListEl.innerHTML = '';
+
+        todos.forEach((todo, i) => {
+          const li = document.createElement('li');
+
+          // Etiqueta con el texto de la tarea (tachado si done=true)
+          const span = document.createElement('span');
+          span.textContent = todo.label;
+          span.className = todo.done
+            ? 'done-true task-label'
+            : 'done-false task-label';
+          li.appendChild(span);
+
+          // Botón DELETE /todos/i
+          const btnDel = document.createElement('button');
+          btnDel.textContent = `DELETE /todos/${i}`;
+          btnDel.className = 'btn-delete';
+          btnDel.onclick = async () => {
+            try {
+              const delResp = await fetch(baseURL + '/todos/' + i, {
+                method: 'DELETE'
+              });
+              if (!delResp.ok) {
+                alert('Error al borrar: ' + delResp.status);
+                return;
+              }
+              // Refrescar lista tras borrar
+              fetchTodos();
+            } catch (err) {
+              console.error(err);
+              alert('Error en la petición de borrado.');
+            }
+          };
+          li.appendChild(btnDel);
+
+          todoListEl.appendChild(li);
+        });
+      } catch (err) {
+        console.error(err);
+        todoListEl.innerHTML = '<li>Error al cargar la lista.</li>';
+      }
+    }
+
+    // 2) Función para crear una tarea nueva (POST /todos)
+    async function createTodo() {
+      const label = inputLabel.value.trim();
+      if (!label) {
+        alert('Escribe algo para la tarea.');
+        return;
+      }
+      try {
+        // Enviamos siempre { label: "...", done: false }
+        const resp = await fetch(baseURL + '/todos', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ label: label, done: false })
+        });
+        if (resp.status === 201) {
+          inputLabel.value = '';
+          // Refrescar la lista tras crear exitosamente
+          fetchTodos();
+        } else {
+          const errData = await resp.json();
+          alert('Error al crear la tarea: ' + (errData.description || resp.status));
+        }
+      } catch (err) {
+        console.error(err);
+        alert('Error en la petición de creación.');
+      }
+    }
+
+    // 3) Asociar eventos a los botones
+    btnGet.addEventListener('click', fetchTodos);
+    btnPost.addEventListener('click', createTodo);
+
+    // Nota: No llamamos a fetchTodos() automáticamente al cargar.
+    // La lista solo aparece después de pulsar “GET /todos” o tras crear/borrar.
+  </script>
+</body>
+</html>
